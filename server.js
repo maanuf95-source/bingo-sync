@@ -6,22 +6,23 @@ const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
-// Все подключённые клиенты
+// Хранит всех клиентов
 const clients = new Set();
 
-// Раздаем статические файлы (если нужно)
-app.use(express.static('public'));
+// Простая HTTP-страница (необязательно)
+app.get('/', (req, res) => {
+  res.send('Сервер синхронизации запущен ✅');
+});
 
-// WebSocket: обработка подключений
+// WebSocket
 wss.on('connection', (socket) => {
-  console.log('Клиент подключился');
+  console.log('📱 Клиент подключился');
   clients.add(socket);
 
   socket.on('message', (data) => {
-    const message = data.toString();
+    const message = data.toString().trim();
     if (message === 'spin') {
-      console.log('Получен сигнал SPIN! Рассылаем всем...');
-      // Рассылаем всем, кроме отправителя (или всем — как удобно)
+      console.log('🎉 Получен SPIN! Рассылаем всем...');
       clients.forEach(client => {
         if (client.readyState === client.OPEN) {
           client.send('SPIN_NOW');
@@ -32,12 +33,12 @@ wss.on('connection', (socket) => {
 
   socket.on('close', () => {
     clients.delete(socket);
-    console.log('Клиент отключился');
+    console.log('🔌 Клиент отключился');
   });
 });
 
 // Порт от Render
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Сервер запущен на порту ${PORT}`);
+  console.log(`🚀 Сервер синхронизации запущен на порту ${PORT}`);
 });
