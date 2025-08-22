@@ -1,42 +1,43 @@
 const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
+const { createServer } = require('http');
+const { WebSocketServer } = require('ws');
 
 const app = express();
-const server = http.createServer(app);
+const server = createServer(app);
+const wss = new WebSocketServer({ server });
 
-const io = socketIo(server, {
-  cors: {
-    origin: "https://bingomoscow.online",
-    methods: ["GET", "POST"],
-    credentials: true
-  }
-});
+// Все подключённые клиенты
+const clients = new Set();
 
-let isSpinning = false;
+// Раздаем статические файлы (если нужно)
+app.use(express.static('public'));
 
-io.on('connection', (socket) => {
-  console.log('Пользователь подключился:', socket.id);
-  socket.emit('wheel:state', { spinning: isSpinning });
+// WebSocket: обработка подключений
+wss.on('connection', (socket) => {
+  console.log('Клиент подключился');
+  clients.add(socket);
 
-  socket.on('wheel:spin', () => {
-    console.log('Крутим колесо!');
-    if (!isSpinning) {
-      isSpinning = true;
-      io.emit('wheel:spin');
-      setTimeout(() => {
-        isSpinning = false;
-        io.emit('wheel:stop');
-      }, 3000);
+  socket.on('message', (data) => {
+    const message = data.toString();
+    if (message === 'spin') {
+      console.log('Получен сигнал SPIN! Рассылаем всем...');
+      // Рассылаем всем, кроме отправителя (или всем — как удобно)
+      clients.forEach(client => {
+        if (client.readyState === client.OPEN) {
+          client.send('SPIN_NOW');
+        }
+      });
     }
   });
 
-  socket.on('disconnect', () => {
-    console.log('Пользователь отключился');
+  socket.on('close', () => {
+    clients.delete(socket);
+    console.log('Клиент отключился');
   });
 });
 
-const PORT = process.env.PORT || 3001;
+// Порт от Render
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Сервер запущен на порту ${PORT}`);
 });
