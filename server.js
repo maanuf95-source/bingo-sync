@@ -2,24 +2,25 @@ const express = require('express');
 const cors = require('cors');
 
 const app = express();
-app.use(cors()); // ← КРИТИЧНО!
+app.use(cors());
 app.use(express.json());
 
 // Храним последнее действие
 let lastAction = { type: null, timestamp: 0 };
 
-// ✅ Этот маршрут нужен
+// Получить последнее действие
 app.get('/last-action', (req, res) => {
   res.json(lastAction);
 });
 
-// ✅ Этот маршрут нужен
+// Принять команду "крутить"
 app.post('/spin', (req, res) => {
   lastAction = { type: 'spin', timestamp: Date.now() };
+  console.log('SPIN получен и сохранён');
   res.json({ success: true, timestamp: lastAction.timestamp });
 });
 
-// ✅ Главная страница — чтобы видеть, что сервер жив
+// Главная страница — для проверки
 app.get('/', (req, res) => {
   res.send('Сервер синхронизации запущен ✅');
 });
