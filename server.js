@@ -1,44 +1,34 @@
 const express = require('express');
-const { createServer } = require('http');
-const { WebSocketServer } = require('ws');
+const cors = require('cors');
 
 const app = express();
-const server = createServer(app);
-const wss = new WebSocketServer({ server });
+app.use(cors());
+app.use(express.json());
 
-// Хранит всех клиентов
-const clients = new Set();
+// Храним последнее действие
+let lastAction = { type: null, timestamp: 0 };
 
-// Простая HTTP-страница (необязательно)
+// Получить последнее действие
+app.get('/last-action', (req, res) => {
+  res.json(lastAction);
+});
+
+// Установить действие (от мобильного)
+app.post('/spin', (req, res) => {
+  lastAction = { type: 'spin', timestamp: Date.now() };
+  console.log('SPIN получен и сохранён');
+  res.json({ success: true, timestamp: lastAction.timestamp });
+});
+
+// Проверка — можно удалить
 app.get('/', (req, res) => {
-  res.send('Сервер синхронизации запущен ✅');
+  res.send(`
+    <h1>Сервер синхронизации запущен ✅</h1>
+    <p><a href="/last-action">/last-action</a></p>
+  `);
 });
 
-// WebSocket
-wss.on('connection', (socket) => {
-  console.log('📱 Клиент подключился');
-  clients.add(socket);
-
-  socket.on('message', (data) => {
-    const message = data.toString().trim();
-    if (message === 'spin') {
-      console.log('🎉 Получен SPIN! Рассылаем всем...');
-      clients.forEach(client => {
-        if (client.readyState === client.OPEN) {
-          client.send('SPIN_NOW');
-        }
-      });
-    }
-  });
-
-  socket.on('close', () => {
-    clients.delete(socket);
-    console.log('🔌 Клиент отключился');
-  });
-});
-
-// Порт от Render
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`🚀 Сервер синхронизации запущен на порту ${PORT}`);
+app.listen(PORT, () => {
+  console.log(`Сервер запущен на порту ${PORT}`);
 });
